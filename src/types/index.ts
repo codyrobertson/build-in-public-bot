@@ -9,6 +9,7 @@ export interface Config {
 export interface TwitterConfig {
   username: string;
   sessionData: string | null;
+  postingMethod?: 'browser' | 'api';
 }
 
 export interface AIConfig {

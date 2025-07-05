@@ -1,0 +1,55 @@
+# Source files
+src/
+*.ts
+
+# Test files
+**/__tests__/
+**/*.test.*
+jest.config.js
+coverage/
+.nyc_output/
+
+# Development files
+.eslintrc.json
+tsconfig.json
+.env
+.env.*
+*.log
+
+# Task master files
+.taskmaster/
+CLAUDE.md
+
+# Git files
+.git/
+.gitignore
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Build artifacts
+*.tsbuildinfo
+
+# Local configuration
+.claude/
+
+# Documentation source
+docs/
+
+# Examples
+examples/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Misc
+node_modules/
+npm-debug.log*
+yarn-error.log*
+lerna-debug.log*

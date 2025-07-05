@@ -1,11 +1,25 @@
 {
   "name": "build-in-public-bot",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "AI-powered CLI bot for automating build-in-public tweets with code screenshots",
   "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "bin": {
     "bip": "dist/cli.js",
     "build-in-public": "dist/cli.js"
+  },
+  "files": [
+    "dist/**/*",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/build-in-public-bot.git"
+  },
+  "homepage": "https://github.com/yourusername/build-in-public-bot#readme",
+  "bugs": {
+    "url": "https://github.com/yourusername/build-in-public-bot/issues"
   },
   "scripts": {
     "build": "tsc",
@@ -19,9 +33,12 @@
     "test:integration": "npm run build && NODE_ENV=test jest --runInBand --testPathPattern=src/__tests__/integration/.*\\.test\\.ts$",
     "lint": "eslint src --ext .ts",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "npm run lint && npm run test:unit && npm run build",
     "link-local": "npm link",
-    "unlink-local": "npm unlink"
+    "unlink-local": "npm unlink",
+    "release": "npm version patch && npm publish",
+    "release:minor": "npm version minor && npm publish",
+    "release:major": "npm version major && npm publish"
   },
   "keywords": [
     "cli",
@@ -32,7 +49,7 @@
     "social-media",
     "developer-tools"
   ],
-  "author": "",
+  "author": "Your Name <your.email@example.com>",
   "license": "MIT",
   "engines": {
     "node": ">=16.0.0"

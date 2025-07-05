@@ -13,6 +13,7 @@ import { draftCommand } from './commands/draft';
 import { watchCommand } from './commands/watch';
 import { summaryCommand } from './commands/summary';
 import { autoCommand } from './commands/auto';
+import { setupApiCommand } from './commands/setup-api';
 
 const packageJson = require('../package.json');
 
@@ -125,6 +126,9 @@ program.addCommand(summaryCommand);
 
 // Add auto command
 program.addCommand(autoCommand);
+
+// Add setup-api command
+program.addCommand(setupApiCommand);
 
 // Parse arguments
 program.parse();
