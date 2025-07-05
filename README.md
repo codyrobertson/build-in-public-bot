@@ -8,14 +8,22 @@
 
 ## Installation
 
+### From npm (when published)
 ```bash
 npm install -g build-in-public-bot
 ```
 
-Or use with npx:
-
+### From source (current method)
 ```bash
-npx build-in-public-bot init
+# Clone and build
+git clone https://github.com/yourusername/build-in-public-bot.git
+cd build-in-public-bot
+npm install
+npm run build
+npm link
+
+# Now you can use 'bip' command globally
+bip init
 ```
 
 ## Quick Start

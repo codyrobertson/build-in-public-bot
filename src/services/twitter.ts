@@ -264,12 +264,12 @@ export class TwitterService {
       const config = await this.configService.load();
       const username = config.twitter.username;
       
-      // This will open browser and wait for manual login
+      // This will open browser and wait for manual login (headful mode for login)
       await this.authenticate(username, ''); // Empty password forces manual login
     }
     
-    // Post using browser automation
-    const browser = await this.authService.launchBrowser();
+    // Post using browser automation (headless mode for posting)
+    const browser = await this.authService.launchBrowser(true); // headless for posting
     const page = await browser.newPage();
     
     try {

@@ -28,7 +28,7 @@ export class TwitterAuthService {
       
       // Launch browser with stealth plugin to avoid detection
       this.browser = await puppeteer.launch({
-        headless: false, // Set to true in production
+        headless: false, // Always headful for authentication
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -203,10 +203,10 @@ export class TwitterAuthService {
     }
   }
 
-  async launchBrowser(): Promise<Browser> {
+  async launchBrowser(headless: boolean = false): Promise<Browser> {
     if (!this.browser) {
       this.browser = await puppeteer.launch({
-        headless: false,
+        headless,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',

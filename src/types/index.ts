@@ -10,6 +10,7 @@ export interface TwitterConfig {
   username: string;
   sessionData: string | null;
   postingMethod?: 'browser' | 'api';
+  browserMode?: 'headless' | 'headful';
 }
 
 export interface AIConfig {
