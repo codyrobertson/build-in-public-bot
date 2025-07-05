@@ -1,0 +1,68 @@
+name = "Cyberpunk"
+author = "Build in Public Bot"
+variant = "dark"
+
+# Core colors
+background = "#0a0a0a"
+foreground = "#00ff88"
+cursor = "#ff0080"
+selection = "#ff008033"
+currentLine = "#1a1a1a"
+lineNumber = "#666666"
+
+# Gradient support
+gradientFrom = "#0a0a0a"
+gradientTo = "#1a0a2a"
+
+# Shader background (halftone effect)
+[shader]
+name = "halftone"
+[shader.colors]
+primary = "#00ff88"
+background = "#0a0a0a"
+[shader.parameters]
+intensity = 0.8
+scale = 1.0
+
+# Base syntax colors
+comment = "#666666"
+string = "#ff0080"
+number = "#00ffff"
+keyword = "#ff00ff"
+operator = "#00ff88"
+function = "#ffff00"
+variable = "#00ff88"
+constant = "#00ffff"
+type = "#ff00ff"
+class = "#ffff00"
+
+# Extended syntax colors
+property = "#00ffff"
+attribute = "#ff0080"
+tag = "#ff00ff"
+regexp = "#ff0080"
+punctuation = "#00ff88"
+decorator = "#ffff00"
+
+# Language-specific markup
+[markup]
+heading = "#ffff00"
+bold = "#ff0080"
+italic = "#00ff88"
+link = "#00ffff"
+code = "#ff00ff"
+quote = "#666666"
+list = "#ffff00"
+
+# Diff colors
+[diff]
+added = "#00ff88"
+removed = "#ff0080"
+changed = "#ffff00"
+
+# UI elements
+[ui]
+error = "#ff0080"
+warning = "#ffff00"
+info = "#00ffff"
+success = "#00ff88"

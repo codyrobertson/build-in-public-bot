@@ -1,0 +1,54 @@
+name = "Catppuccin Mocha"
+author = "Catppuccin"
+variant = "dark"
+
+# Core colors
+background = "#1e1e2e"
+foreground = "#cdd6f4"
+cursor = "#f5e0dc"
+selection = "#45475a"
+currentLine = "#313244"
+lineNumber = "#6c7086"
+
+# Base syntax colors
+comment = "#6c7086"
+string = "#a6e3a1"
+number = "#fab387"
+keyword = "#cba6f7"
+operator = "#89dceb"
+function = "#89b4fa"
+variable = "#f5e0dc"
+constant = "#fab387"
+type = "#f9e2af"
+class = "#f9e2af"
+
+# Extended syntax colors
+property = "#94e2d5"
+attribute = "#a6e3a1"
+tag = "#f38ba8"
+regexp = "#f5c2e7"
+punctuation = "#cdd6f4"
+decorator = "#fab387"
+
+# Language-specific markup
+[markup]
+heading = "#89b4fa"
+bold = "#fab387"
+italic = "#cba6f7"
+link = "#89dceb"
+code = "#a6e3a1"
+quote = "#6c7086"
+list = "#f38ba8"
+
+# Diff colors
+[diff]
+added = "#a6e3a1"
+removed = "#f38ba8"
+changed = "#fab387"
+
+# UI elements
+[ui]
+error = "#f38ba8"
+warning = "#fab387"
+info = "#89b4fa"
+success = "#a6e3a1"

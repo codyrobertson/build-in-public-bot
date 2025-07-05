@@ -11,7 +11,7 @@ export async function postCommand(message: string, options: any): Promise<void> 
   const configService = ConfigService.getInstance();
   const aiService = AIService.getInstance();
   const storageService = StorageService.getInstance();
-  const twitterService = TwitterService.getInstance();
+  const twitterService = await TwitterService.getInstance();
 
   try {
     // Load configuration

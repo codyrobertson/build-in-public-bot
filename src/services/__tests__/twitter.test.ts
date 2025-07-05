@@ -36,7 +36,7 @@ describe('TwitterService', () => {
   const mockHomePath = '/home/testuser/.bip';
   const mockAuthPath = path.join(mockHomePath, 'twitter-auth.json');
 
-  beforeEach(() => {
+  beforeEach(async () => {
     // Reset singleton
     (TwitterService as any).instance = null;
     
@@ -59,16 +59,16 @@ describe('TwitterService', () => {
     jest.spyOn(TwitterService.prototype as any, 'getAuthDataPath').mockReturnValue(mockAuthPath);
     
     // Create service instance
-    twitterService = TwitterService.getInstance();
+    twitterService = await TwitterService.getInstance();
     
     // Reset mocks
     jest.clearAllMocks();
   });
 
   describe('getInstance', () => {
-    it('should create singleton instance', () => {
-      const instance1 = TwitterService.getInstance();
-      const instance2 = TwitterService.getInstance();
+    it('should create singleton instance', async () => {
+      const instance1 = await TwitterService.getInstance();
+      const instance2 = await TwitterService.getInstance();
       expect(instance1).toBe(instance2);
     });
   });

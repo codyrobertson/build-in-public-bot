@@ -1,0 +1,54 @@
+name = "One Dark"
+author = "Atom"
+variant = "dark"
+
+# Core colors
+background = "#282c34"
+foreground = "#abb2bf"
+cursor = "#528bff"
+selection = "#3e4451"
+currentLine = "#2c313c"
+lineNumber = "#4b5263"
+
+# Base syntax colors
+comment = "#5c6370"
+string = "#98c379"
+number = "#d19a66"
+keyword = "#c678dd"
+operator = "#56b6c2"
+function = "#61afef"
+variable = "#e06c75"
+constant = "#d19a66"
+type = "#e5c07b"
+class = "#e5c07b"
+
+# Extended syntax colors
+property = "#e06c75"
+attribute = "#d19a66"
+tag = "#e06c75"
+regexp = "#56b6c2"
+punctuation = "#abb2bf"
+decorator = "#e5c07b"
+
+# Language-specific markup
+[markup]
+heading = "#e06c75"
+bold = "#d19a66"
+italic = "#c678dd"
+link = "#61afef"
+code = "#98c379"
+quote = "#5c6370"
+list = "#e06c75"
+
+# Diff colors
+[diff]
+added = "#98c379"
+removed = "#e06c75"
+changed = "#e5c07b"
+
+# UI elements
+[ui]
+error = "#e06c75"
+warning = "#e5c07b"
+info = "#61afef"
+success = "#98c379"

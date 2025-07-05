@@ -153,10 +153,10 @@ TWITTER_ACCESS_TOKEN_SECRET=${accessSecret}
         } catch (error) {
           console.log(chalk.yellow('\n⚠️  Could not save credentials to .env'));
           console.log(chalk.dim('Add these to your .env file manually:'));
-          console.log(chalk.cyan(`TWITTER_API_KEY=${apiKey}`));
-          console.log(chalk.cyan(`TWITTER_API_KEY_SECRET=${apiSecret}`));
-          console.log(chalk.cyan(`TWITTER_ACCESS_TOKEN=${accessToken}`));
-          console.log(chalk.cyan(`TWITTER_ACCESS_TOKEN_SECRET=${accessSecret}`));
+          console.log(chalk.cyan('TWITTER_API_KEY=***HIDDEN***'));
+          console.log(chalk.cyan('TWITTER_API_KEY_SECRET=***HIDDEN***'));
+          console.log(chalk.cyan('TWITTER_ACCESS_TOKEN=***HIDDEN***'));
+          console.log(chalk.cyan('TWITTER_ACCESS_TOKEN_SECRET=***HIDDEN***'));
         }
         
         // Save posting method preference
@@ -226,7 +226,7 @@ TWITTER_ACCESS_TOKEN_SECRET=${accessSecret}
         } catch (error) {
           console.log(chalk.yellow('⚠️  Could not save to .env file'));
           console.log(chalk.dim('Add this to your environment manually:'));
-          console.log(chalk.cyan(`export OPENROUTER_API_KEY="${apiKey}"`));
+          console.log(chalk.cyan('export OPENROUTER_API_KEY="***HIDDEN***"'));
         }
       } else {
         console.log(chalk.dim('\nYou can add it later to your .env file:'));

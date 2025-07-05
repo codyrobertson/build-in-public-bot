@@ -14,6 +14,8 @@ import { watchCommand } from './commands/watch';
 import { summaryCommand } from './commands/summary';
 import { autoCommand } from './commands/auto';
 import { setupApiCommand } from './commands/setup-api';
+import { screenshotCommand } from './commands/screenshot';
+import { serverCommand } from './commands/server';
 
 const packageJson = require('../package.json');
 
@@ -68,11 +70,24 @@ program
 // Code command
 program
   .command('code <file> [caption]')
+  .alias('c')
   .description('Post code screenshot with caption')
-  .option('-l, --lines <range>', 'line range to capture (e.g., "1-10")')
-  .option('-n, --no-confirm', 'skip confirmation before posting')
+  .option('-l, --lines <range>', 'line range (e.g., "1-10")')
+  .option('-t, --theme <theme>', 'theme name (default: dracula)')
+  .option('-b, --bg <color>', 'background color hex/rgb')
+  .option('-n, --line-numbers', 'show line numbers')
+  .option('--no-window', 'hide window controls')
+  .option('-s, --size <size>', 'font size (default: 14px)')
+  .option('-f, --font <family>', 'font family')
+  .option('--no-wrap', 'disable line wrapping')
+  .option('-w, --width <pixels>', 'width in pixels')
+  .option('--no-confirm', 'skip confirmation')
   .action(async (file: string, caption: string | undefined, options) => {
     try {
+      // Map short aliases to full option names
+      if (options.size && !options.fontSize) {
+        options.fontSize = options.size;
+      }
       await codeCommand(file, caption, options);
     } catch (error) {
       handleError(error);
@@ -129,6 +144,71 @@ program.addCommand(autoCommand);
 
 // Add setup-api command
 program.addCommand(setupApiCommand);
+
+// Screenshot command with shorter aliases
+program
+  .command('screenshot [file]')
+  .alias('ss')
+  .alias('shot')
+  .description('Generate code screenshot preview')
+  .option('-l, --lines <range>', 'line range (e.g., "1-10")')
+  .option('-t, --theme <theme>', 'theme name (default: dracula)')
+  .option('-b, --bg <color>', 'background color hex/rgb')
+  .option('-n, --line-numbers', 'show line numbers')
+  .option('--no-window', 'hide window controls')
+  .option('-s, --size <size>', 'font size (default: 14px)')
+  .option('-f, --font <family>', 'font family')
+  .option('--no-wrap', 'disable line wrapping')
+  .option('-w, --width <pixels>', 'width in pixels (default: 680)')
+  .option('-p, --padding <pixels>', 'padding around code (default: 32)')
+  .option('--no-gradient', 'disable gradient background')
+  .option('--shader <name>', 'use shader background (halftone, disruptor, shinkai, pixel-gradient)')
+  .option('--shader-intensity <value>', 'shader intensity (0-2, default: 1)')
+  .option('--shader-scale <value>', 'shader scale (0.5-5, default: 1)')
+  .option('-o, --open', 'open screenshot in viewer')
+  .option('-c, --copy', 'copy file path to clipboard')
+  .option('--list', 'list available themes')
+  .option('--info <theme>', 'show theme info')
+  .option('-d, --debug', 'enable debug mode')
+  .action(async (file: string | undefined, options) => {
+    try {
+      if (options.debug) {
+        process.env.DEBUG = 'true';
+        logger.debug('Debug mode enabled');
+      }
+      // Map short aliases to full option names
+      if (options.size && !options.fontSize) {
+        options.fontSize = options.size;
+      }
+      if (options.list) {
+        options.listThemes = true;
+      }
+      if (options.info) {
+        options.themeInfo = options.info;
+      }
+      // Check if file is required
+      if (!file && !options.listThemes && !options.themeInfo) {
+        console.error('Error: file argument is required unless using --list or --info');
+        process.exit(1);
+      }
+      await screenshotCommand(file || '', options);
+    } catch (error) {
+      handleError(error);
+    }
+  });
+
+// Server command for editor integrations
+program
+  .command('server')
+  .description('Start server for editor integrations')
+  .option('-p, --port <port>', 'server port', '3456')
+  .action(async (options) => {
+    try {
+      await serverCommand({ port: parseInt(options.port) });
+    } catch (error) {
+      handleError(error);
+    }
+  });
 
 // Parse arguments
 program.parse();

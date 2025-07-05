@@ -1,0 +1,54 @@
+name = "Nord"
+author = "Arctic Ice Studio"
+variant = "dark"
+
+# Core colors
+background = "#2e3440"
+foreground = "#d8dee9"
+cursor = "#d8dee9"
+selection = "#434c5e"
+currentLine = "#3b4252"
+lineNumber = "#4c566a"
+
+# Base syntax colors
+comment = "#616e88"
+string = "#a3be8c"
+number = "#b48ead"
+keyword = "#81a1c1"
+operator = "#81a1c1"
+function = "#88c0d0"
+variable = "#d8dee9"
+constant = "#8fbcbb"
+type = "#8fbcbb"
+class = "#8fbcbb"
+
+# Extended syntax colors
+property = "#81a1c1"
+attribute = "#8fbcbb"
+tag = "#81a1c1"
+regexp = "#ebcb8b"
+punctuation = "#eceff4"
+decorator = "#d08770"
+
+# Language-specific markup
+[markup]
+heading = "#88c0d0"
+bold = "#ebcb8b"
+italic = "#b48ead"
+link = "#88c0d0"
+code = "#a3be8c"
+quote = "#616e88"
+list = "#81a1c1"
+
+# Diff colors
+[diff]
+added = "#a3be8c"
+removed = "#bf616a"
+changed = "#ebcb8b"
+
+# UI elements
+[ui]
+error = "#bf616a"
+warning = "#d08770"
+info = "#88c0d0"
+success = "#a3be8c"

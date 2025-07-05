@@ -1,0 +1,54 @@
+name = "Gruvbox Dark"
+author = "Pavel Pertsev"
+variant = "dark"
+
+# Core colors
+background = "#282828"
+foreground = "#ebdbb2"
+cursor = "#ebdbb2"
+selection = "#504945"
+currentLine = "#3c3836"
+lineNumber = "#7c6f64"
+
+# Base syntax colors
+comment = "#928374"
+string = "#b8bb26"
+number = "#d3869b"
+keyword = "#fb4934"
+operator = "#fe8019"
+function = "#fabd2f"
+variable = "#83a598"
+constant = "#d3869b"
+type = "#fabd2f"
+class = "#fabd2f"
+
+# Extended syntax colors
+property = "#8ec07c"
+attribute = "#b8bb26"
+tag = "#fb4934"
+regexp = "#fe8019"
+punctuation = "#ebdbb2"
+decorator = "#fabd2f"
+
+# Language-specific markup
+[markup]
+heading = "#fabd2f"
+bold = "#fe8019"
+italic = "#d3869b"
+link = "#83a598"
+code = "#b8bb26"
+quote = "#928374"
+list = "#fb4934"
+
+# Diff colors
+[diff]
+added = "#b8bb26"
+removed = "#fb4934"
+changed = "#fabd2f"
+
+# UI elements
+[ui]
+error = "#fb4934"
+warning = "#fe8019"
+info = "#83a598"
+success = "#b8bb26"

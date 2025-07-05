@@ -7,7 +7,8 @@ import path from 'path';
 import fs from 'fs/promises';
 
 export class TwitterService {
-  private static instance: TwitterService;
+  private static instance: TwitterService | null = null;
+  private static instancePromise: Promise<TwitterService> | null = null;
   private configService: ConfigService;
   private authService: TwitterAuthService;
   private apiClient: TwitterAPIClient | null = null;
@@ -18,11 +19,30 @@ export class TwitterService {
     this.authService = new TwitterAuthService();
   }
 
-  static getInstance(): TwitterService {
-    if (!TwitterService.instance) {
-      TwitterService.instance = new TwitterService();
+  static async getInstance(): Promise<TwitterService> {
+    if (TwitterService.instance) {
+      return TwitterService.instance;
     }
+    
+    if (TwitterService.instancePromise) {
+      return TwitterService.instancePromise;
+    }
+    
+    TwitterService.instancePromise = TwitterService.createInstance();
+    TwitterService.instance = await TwitterService.instancePromise;
+    TwitterService.instancePromise = null;
+    
     return TwitterService.instance;
+  }
+  
+  private static async createInstance(): Promise<TwitterService> {
+    const instance = new TwitterService();
+    await instance.initialize();
+    return instance;
+  }
+  
+  private async initialize(): Promise<void> {
+    // Initialization logic here
   }
 
   async authenticate(username: string, password: string): Promise<void> {
@@ -56,33 +76,45 @@ export class TwitterService {
         return false;
       }
 
-      // Load auth data from file
       const authData = await this.authService.loadAuthData(config.twitter.sessionData);
       if (!authData) {
         return false;
       }
 
-      // Check if auth data is recent (less than 30 days old)
+      // Comprehensive session validation
       if (authData.savedAt) {
         const savedDate = new Date(authData.savedAt);
         const daysSince = (Date.now() - savedDate.getTime()) / (1000 * 60 * 60 * 24);
-        if (daysSince > 30) {
-          logger.warn('Authentication data is older than 30 days. Re-authentication recommended.');
+        
+        if (daysSince > 7) { // More aggressive expiration
+          logger.warn('Session expired (older than 7 days)');
+          return false;
         }
+      }
+
+      // Validate required fields
+      if (!authData.authToken || !authData.ct0 || !authData.cookies) {
+        logger.warn('Session data incomplete');
+        return false;
       }
 
       this.authData = authData;
       this.apiClient = new TwitterAPIClient(authData);
       
-      // Verify the session is still valid
+      // Test session with real API call
       try {
-        await this.apiClient.getRateLimitStatus();
+        const rateLimit = await this.apiClient.getRateLimitStatus();
+        if (rateLimit.remaining === 0) {
+          logger.warn('Session rate limited');
+          return false;
+        }
         return true;
       } catch (error) {
-        logger.warn('Session validation failed. Re-authentication required.');
+        logger.warn('Session validation failed');
         return false;
       }
     } catch (error) {
+      logger.error('Session load failed', error);
       return false;
     }
   }
@@ -160,12 +192,32 @@ export class TwitterService {
   }
 
   async post(text: string, media?: Buffer): Promise<{ id: string; url: string }> {
-    if (!text || text.trim().length === 0) {
+    // Comprehensive input validation
+    if (!text || typeof text !== 'string') {
+      throw new TwitterError('Tweet text must be a non-empty string');
+    }
+    
+    const sanitized = text.trim();
+    if (sanitized.length === 0) {
       throw new TwitterError('Tweet text cannot be empty');
     }
-
-    if (text.length > 280) {
+    
+    if (sanitized.length > 280) {
       throw new TwitterError('Tweet exceeds 280 character limit');
+    }
+    
+    // Check for malicious content
+    const maliciousPatterns = [
+      /<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi,
+      /javascript:/gi,
+      /on\w+\s*=/gi,
+      /data:text\/html/gi
+    ];
+    
+    for (const pattern of maliciousPatterns) {
+      if (pattern.test(sanitized)) {
+        throw new TwitterError('Tweet contains potentially malicious content');
+      }
     }
 
     // Check posting method from config
@@ -174,31 +226,38 @@ export class TwitterService {
     
     if (postingMethod === 'browser') {
       // Use browser automation
-      return this.postViaBrowser(text, media);
+      return this.postViaBrowser(sanitized, media);
     } else {
       // Use API
       if (!this.apiClient) {
         throw new TwitterError('Not authenticated. Please run authenticate() first');
       }
       
+      const tempFiles: string[] = [];
+      
       try {
         let mediaId: string | undefined;
         
         if (media) {
-          // Save media to temporary file first
-          const tempPath = path.join(process.cwd(), '.bip-temp', `temp-${Date.now()}.png`);
-          await fs.mkdir(path.dirname(tempPath), { recursive: true });
+          // Validate and sanitize file path
+          const tempDir = path.resolve(process.cwd(), '.bip-temp');
+          const sanitizedName = Date.now().toString() + '.png';
+          const tempPath = path.join(tempDir, sanitizedName);
+          
+          // Ensure path is within temp directory
+          if (!tempPath.startsWith(tempDir)) {
+            throw new TwitterError('Invalid file path');
+          }
+          
+          tempFiles.push(tempPath);
+          
+          await fs.mkdir(tempDir, { recursive: true });
           await fs.writeFile(tempPath, media);
           
-          try {
-            mediaId = await this.apiClient.uploadMedia(tempPath);
-          } finally {
-            // Clean up temp file
-            await fs.unlink(tempPath).catch(() => {});
-          }
+          mediaId = await this.apiClient.uploadMedia(tempPath);
         }
 
-        const tweetId = await this.postTweet(text, mediaId ? [mediaId] : undefined);
+        const tweetId = await this.postTweet(sanitized, mediaId ? [mediaId] : undefined);
         const username = this.getUsername() || 'user';
         
         return {
@@ -207,6 +266,15 @@ export class TwitterService {
         };
       } catch (error) {
         throw new TwitterError('Failed to post tweet', error);
+      } finally {
+        // Always cleanup temp files
+        await Promise.all(tempFiles.map(async (file) => {
+          try {
+            await fs.unlink(file);
+          } catch (error) {
+            logger.warn(`Failed to cleanup temp file: ${file}`);
+          }
+        }));
       }
     }
   }
@@ -258,14 +326,22 @@ export class TwitterService {
     
     if (!hasSession) {
       logger.info('No saved session found. Opening browser for login...');
-      logger.info('Please log in to Twitter in the browser window.');
       
       // Get username from config
       const config = await this.configService.load();
       const username = config.twitter.username;
       
-      // This will open browser and wait for manual login (headful mode for login)
-      await this.authenticate(username, ''); // Empty password forces manual login
+      // Authenticate manually and save session
+      const authData = await this.authService.authenticateManually(username);
+      this.authData = authData;
+      
+      // Save auth data
+      const authPath = this.getAuthDataPath();
+      await this.authService.saveAuthData(authData, authPath);
+      
+      // Update config with session data
+      config.twitter.sessionData = authPath;
+      await this.configService.save(config);
     }
     
     // Post using browser automation (headless mode for posting)
@@ -289,21 +365,31 @@ export class TwitterService {
       
       // Handle media if provided
       if (media) {
-        // Save media to temp file
-        const tempPath = path.join(process.cwd(), '.bip-temp', `temp-${Date.now()}.png`);
-        await fs.mkdir(path.dirname(tempPath), { recursive: true });
-        await fs.writeFile(tempPath, media);
+        // Validate and sanitize file path
+        const tempDir = path.resolve(process.cwd(), '.bip-temp');
+        const sanitizedName = Date.now().toString() + '.png';
+        const tempPath = path.join(tempDir, sanitizedName);
         
-        // Upload media
-        const fileInput = await page.$('input[type="file"]');
-        if (fileInput) {
-          await fileInput.uploadFile(tempPath);
-          // Wait for upload to complete
-          await page.waitForTimeout(3000);
+        // Ensure path is within temp directory
+        if (!tempPath.startsWith(tempDir)) {
+          throw new TwitterError('Invalid file path');
         }
         
-        // Clean up temp file
-        await fs.unlink(tempPath).catch(() => {});
+        await fs.mkdir(tempDir, { recursive: true });
+        await fs.writeFile(tempPath, media);
+        
+        try {
+          // Upload media
+          const fileInput = await page.$('input[type="file"]');
+          if (fileInput) {
+            await fileInput.uploadFile(tempPath);
+            // Wait for upload to complete
+            await page.waitForTimeout(3000);
+          }
+        } finally {
+          // Clean up temp file
+          await fs.unlink(tempPath).catch(() => {});
+        }
       }
       
       // Click tweet button

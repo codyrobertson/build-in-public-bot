@@ -1,0 +1,54 @@
+name = "Ayu Dark"
+author = "Ike Ku"
+variant = "dark"
+
+# Core colors
+background = "#0a0e14"
+foreground = "#b3b1ad"
+cursor = "#e6b450"
+selection = "#273747"
+currentLine = "#1b2733"
+lineNumber = "#3e4b59"
+
+# Base syntax colors
+comment = "#626a73"
+string = "#c2d94c"
+number = "#e6b450"
+keyword = "#ff8f40"
+operator = "#f29668"
+function = "#ffb454"
+variable = "#39bae6"
+constant = "#e6b450"
+type = "#59c2ff"
+class = "#59c2ff"
+
+# Extended syntax colors
+property = "#39bae6"
+attribute = "#95e6cb"
+tag = "#ff8f40"
+regexp = "#95e6cb"
+punctuation = "#b3b1ad"
+decorator = "#ffb454"
+
+# Language-specific markup
+[markup]
+heading = "#59c2ff"
+bold = "#e6b450"
+italic = "#ff8f40"
+link = "#39bae6"
+code = "#c2d94c"
+quote = "#626a73"
+list = "#ff8f40"
+
+# Diff colors
+[diff]
+added = "#91b362"
+removed = "#f07178"
+changed = "#e6b450"
+
+# UI elements
+[ui]
+error = "#f07178"
+warning = "#ff8f40"
+info = "#59c2ff"
+success = "#91b362"

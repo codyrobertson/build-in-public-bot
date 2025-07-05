@@ -57,6 +57,10 @@ export class TwitterAPIClient {
   };
 
   constructor(authData: TwitterAuthData) {
+    // Validate required environment variable
+    if (!process.env.TWITTER_BEARER_TOKEN) {
+      throw new TwitterError('TWITTER_BEARER_TOKEN environment variable is required');
+    }
     
     // Build cookie string from auth data
     const cookieString = authData.cookies
@@ -69,7 +73,7 @@ export class TwitterAPIClient {
         'authority': 'twitter.com',
         'accept': '*/*',
         'accept-language': 'en-US,en;q=0.9',
-        'authorization': `Bearer ${process.env.TWITTER_BEARER_TOKEN || 'AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA'}`,
+        'authorization': `Bearer ${process.env.TWITTER_BEARER_TOKEN}`,
         'content-type': 'application/json',
         'cookie': cookieString,
         'origin': 'https://twitter.com',
@@ -214,6 +218,7 @@ export class TwitterAPIClient {
   private async checkUploadStatus(mediaId: string): Promise<void> {
     let attempts = 0;
     const maxAttempts = 10;
+    const baseDelay = 1000;
 
     while (attempts < maxAttempts) {
       const params = new URLSearchParams({
@@ -235,12 +240,15 @@ export class TwitterAPIClient {
         throw new TwitterError(`Media processing failed: ${processing_info.error?.message || 'Unknown error'}`);
       }
 
-      // Wait before checking again
-      await new Promise(resolve => setTimeout(resolve, processing_info.check_after_secs * 1000 || 1000));
+      // Exponential backoff with jitter
+      const delay = Math.min(baseDelay * Math.pow(2, attempts), 30000);
+      const jitter = Math.random() * 1000;
+      await new Promise(resolve => setTimeout(resolve, delay + jitter));
+      
       attempts++;
     }
 
-    throw new TwitterError('Media processing timeout');
+    throw new TwitterError('Media processing timeout after maximum attempts');
   }
 
   async getRateLimitStatus(): Promise<{

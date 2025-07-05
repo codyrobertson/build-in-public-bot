@@ -17,7 +17,7 @@ export async function codeCommand(
   const aiService = AIService.getInstance();
   const screenshotService = ScreenshotService.getInstance();
   const storageService = StorageService.getInstance();
-  const twitterService = TwitterService.getInstance();
+  const twitterService = await TwitterService.getInstance();
 
   try {
     // Load configuration
@@ -86,7 +86,17 @@ export async function codeCommand(
       const screenshotBuffer = await screenshotService.generateCodeScreenshot(
         code,
         language,
-        config.screenshots
+        config.screenshots,
+        {
+          backgroundColor: options.bg,
+          theme: options.theme,
+          lineNumbers: options.lineNumbers,
+          windowControls: options.window !== false, // --no-window flag
+          fontSize: options.fontSize,
+          fontFamily: options.font,
+          lineWrap: options.wrap !== false, // --no-wrap flag
+          width: options.width ? parseInt(options.width, 10) : undefined
+        }
       );
       const screenshotPath = await screenshotService.saveScreenshot(screenshotBuffer);
       logger.stopSpinner(true, 'Screenshot generated!');

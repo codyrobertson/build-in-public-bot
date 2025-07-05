@@ -1,0 +1,123 @@
+{
+  "name": "build-in-public-bot",
+  "displayName": "Build in Public Bot",
+  "description": "Generate code screenshots and post to Twitter",
+  "version": "1.0.0",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "onCommand:bip.screenshot",
+    "onCommand:bip.screenshotSelection",
+    "onCommand:bip.post",
+    "onCommand:bip.postSelection"
+  ],
+  "main": "./extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "bip.screenshot",
+        "title": "BIP: Screenshot Current File"
+      },
+      {
+        "command": "bip.screenshotSelection",
+        "title": "BIP: Screenshot Selection"
+      },
+      {
+        "command": "bip.post",
+        "title": "BIP: Post to Twitter"
+      },
+      {
+        "command": "bip.postSelection",
+        "title": "BIP: Post Selection to Twitter"
+      },
+      {
+        "command": "bip.setTheme",
+        "title": "BIP: Set Theme"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "bip.screenshot",
+        "key": "ctrl+shift+s",
+        "mac": "cmd+shift+s",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "bip.screenshotSelection",
+        "key": "ctrl+shift+alt+s",
+        "mac": "cmd+shift+alt+s",
+        "when": "editorHasSelection"
+      }
+    ],
+    "configuration": {
+      "title": "Build in Public Bot",
+      "properties": {
+        "bip.theme": {
+          "type": "string",
+          "default": "dracula",
+          "enum": [
+            "dracula",
+            "github-dark",
+            "tokyo-night",
+            "nord",
+            "one-dark",
+            "monokai-pro",
+            "catppuccin-mocha",
+            "synthwave-84",
+            "gruvbox-dark",
+            "ayu-dark"
+          ],
+          "description": "Default theme for screenshots"
+        },
+        "bip.showLineNumbers": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show line numbers in screenshots"
+        },
+        "bip.fontSize": {
+          "type": "string",
+          "default": "14px",
+          "description": "Font size for screenshots"
+        },
+        "bip.copyToClipboard": {
+          "type": "boolean",
+          "default": true,
+          "description": "Copy screenshot path to clipboard"
+        },
+        "bip.windowControls": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show window controls in screenshots"
+        }
+      }
+    },
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorTextFocus",
+          "command": "bip.screenshot",
+          "group": "bip@1"
+        },
+        {
+          "when": "editorHasSelection",
+          "command": "bip.screenshotSelection",
+          "group": "bip@2"
+        },
+        {
+          "when": "editorTextFocus",
+          "command": "bip.post",
+          "group": "bip@3"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "test": "node ./test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "16.x"
+  }
+}

@@ -1,0 +1,65 @@
+name = "Synthwave 84"
+author = "Robb Owen"
+variant = "dark"
+
+# Core colors
+background = "#262335"
+foreground = "#ffffff"
+cursor = "#ff7edb"
+selection = "#463465"
+currentLine = "#2a2139"
+lineNumber = "#848bbd"
+
+# Gradient support
+gradientFrom = "#1a1529"
+gradientTo = "#3d2c5e"
+
+# Shader background (optional)
+[shader]
+name = "pixel-gradient"
+[shader.parameters]
+intensity = 1.2
+scale = 1.5
+
+# Base syntax colors
+comment = "#848bbd"
+string = "#ff8b39"
+number = "#f97e72"
+keyword = "#fede5d"
+operator = "#ff7edb"
+function = "#36f9f6"
+variable = "#ff7edb"
+constant = "#f97e72"
+type = "#fede5d"
+class = "#fede5d"
+
+# Extended syntax colors
+property = "#36f9f6"
+attribute = "#72f1b8"
+tag = "#ff7edb"
+regexp = "#ff8b39"
+punctuation = "#ffffff"
+decorator = "#fede5d"
+
+# Language-specific markup
+[markup]
+heading = "#36f9f6"
+bold = "#ff8b39"
+italic = "#ff7edb"
+link = "#36f9f6"
+code = "#72f1b8"
+quote = "#848bbd"
+list = "#fede5d"
+
+# Diff colors
+[diff]
+added = "#72f1b8"
+removed = "#fe4450"
+changed = "#ff8b39"
+
+# UI elements
+[ui]
+error = "#fe4450"
+warning = "#ff8b39"
+info = "#36f9f6"
+success = "#72f1b8"

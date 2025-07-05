@@ -86,7 +86,7 @@ describe('Tweet Workflow Integration', () => {
     configService = ConfigService.getInstance();
     aiService = AIService.getInstance();
     screenshotService = ScreenshotService.getInstance();
-    twitterService = TwitterService.getInstance();
+    twitterService = await TwitterService.getInstance();
     storageService = StorageService.getInstance();
     
     // Initialize services
