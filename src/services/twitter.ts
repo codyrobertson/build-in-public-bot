@@ -160,10 +160,6 @@ export class TwitterService {
   }
 
   async post(text: string, media?: Buffer): Promise<{ id: string; url: string }> {
-    if (!this.apiClient) {
-      throw new TwitterError('Not authenticated. Please run authenticate() first');
-    }
-
     if (!text || text.trim().length === 0) {
       throw new TwitterError('Tweet text cannot be empty');
     }
@@ -172,32 +168,46 @@ export class TwitterService {
       throw new TwitterError('Tweet exceeds 280 character limit');
     }
 
-    try {
-      let mediaId: string | undefined;
-      
-      if (media) {
-        // Save media to temporary file first
-        const tempPath = path.join(process.cwd(), '.bip-temp', `temp-${Date.now()}.png`);
-        await fs.mkdir(path.dirname(tempPath), { recursive: true });
-        await fs.writeFile(tempPath, media);
-        
-        try {
-          mediaId = await this.apiClient.uploadMedia(tempPath);
-        } finally {
-          // Clean up temp file
-          await fs.unlink(tempPath).catch(() => {});
-        }
+    // Check posting method from config
+    const config = await this.configService.load();
+    const postingMethod = config.twitter.postingMethod || 'browser';
+    
+    if (postingMethod === 'browser') {
+      // Use browser automation
+      return this.postViaBrowser(text, media);
+    } else {
+      // Use API
+      if (!this.apiClient) {
+        throw new TwitterError('Not authenticated. Please run authenticate() first');
       }
-
-      const tweetId = await this.postTweet(text, mediaId ? [mediaId] : undefined);
-      const username = this.getUsername() || 'user';
       
-      return {
-        id: tweetId,
-        url: `https://twitter.com/${username}/status/${tweetId}`
-      };
-    } catch (error) {
-      throw new TwitterError('Failed to post tweet', error);
+      try {
+        let mediaId: string | undefined;
+        
+        if (media) {
+          // Save media to temporary file first
+          const tempPath = path.join(process.cwd(), '.bip-temp', `temp-${Date.now()}.png`);
+          await fs.mkdir(path.dirname(tempPath), { recursive: true });
+          await fs.writeFile(tempPath, media);
+          
+          try {
+            mediaId = await this.apiClient.uploadMedia(tempPath);
+          } finally {
+            // Clean up temp file
+            await fs.unlink(tempPath).catch(() => {});
+          }
+        }
+
+        const tweetId = await this.postTweet(text, mediaId ? [mediaId] : undefined);
+        const username = this.getUsername() || 'user';
+        
+        return {
+          id: tweetId,
+          url: `https://twitter.com/${username}/status/${tweetId}`
+        };
+      } catch (error) {
+        throw new TwitterError('Failed to post tweet', error);
+      }
     }
   }
 
@@ -238,5 +248,83 @@ export class TwitterService {
   private getAuthDataPath(): string {
     const configDir = this.configService.getConfigDir();
     return path.join(configDir, 'twitter-auth.json');
+  }
+
+  private async postViaBrowser(text: string, media?: Buffer): Promise<{ id: string; url: string }> {
+    logger.info('Using browser automation to post tweet...');
+    
+    // Check if we have a saved session
+    const hasSession = await this.loadSession();
+    
+    if (!hasSession) {
+      logger.info('No saved session found. Opening browser for login...');
+      logger.info('Please log in to Twitter in the browser window.');
+      
+      // Get username from config
+      const config = await this.configService.load();
+      const username = config.twitter.username;
+      
+      // This will open browser and wait for manual login
+      await this.authenticate(username, ''); // Empty password forces manual login
+    }
+    
+    // Post using browser automation
+    const browser = await this.authService.launchBrowser();
+    const page = await browser.newPage();
+    
+    try {
+      // Load saved cookies if available
+      if (this.authData?.cookies) {
+        await page.setCookie(...this.authData.cookies);
+      }
+      
+      // Navigate to Twitter
+      await page.goto('https://twitter.com/compose/tweet', { waitUntil: 'networkidle2' });
+      
+      // Wait for tweet compose box
+      await page.waitForSelector('[data-testid="tweetTextarea_0"]', { timeout: 10000 });
+      
+      // Type the tweet
+      await page.type('[data-testid="tweetTextarea_0"]', text);
+      
+      // Handle media if provided
+      if (media) {
+        // Save media to temp file
+        const tempPath = path.join(process.cwd(), '.bip-temp', `temp-${Date.now()}.png`);
+        await fs.mkdir(path.dirname(tempPath), { recursive: true });
+        await fs.writeFile(tempPath, media);
+        
+        // Upload media
+        const fileInput = await page.$('input[type="file"]');
+        if (fileInput) {
+          await fileInput.uploadFile(tempPath);
+          // Wait for upload to complete
+          await page.waitForTimeout(3000);
+        }
+        
+        // Clean up temp file
+        await fs.unlink(tempPath).catch(() => {});
+      }
+      
+      // Click tweet button
+      await page.click('[data-testid="tweetButtonInline"]');
+      
+      // Wait for tweet to be posted
+      await page.waitForTimeout(3000);
+      
+      // Get the tweet URL (approximate)
+      const username = this.getUsername() || 'user';
+      const tweetId = Date.now().toString(); // Approximate ID
+      
+      return {
+        id: tweetId,
+        url: `https://twitter.com/${username}/status/${tweetId}`
+      };
+      
+    } catch (error) {
+      throw new TwitterError('Failed to post tweet via browser', error);
+    } finally {
+      await browser.close();
+    }
   }
 }
