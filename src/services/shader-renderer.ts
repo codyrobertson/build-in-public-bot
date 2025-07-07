@@ -137,13 +137,13 @@ export class ShaderRenderer {
         
         const flow = this.fbm(p_x * 3, p_y * 3);
         
-        // Generate dots
-        const scale = 15.0;
+        // Generate dots with proper scale parameter
+        const scale = 15.0 * uniforms.u_params.scale;
         const grid_x = (p_x * scale) % 1 - 0.5;
         const grid_y = (p_y * scale) % 1 - 0.5;
         const gridDist = Math.sqrt(grid_x * grid_x + grid_y * grid_y);
         
-        const dotSize = 0.1 + 0.05 * Math.sin(flow * 6.28);
+        const dotSize = (0.1 + 0.05 * Math.sin(flow * 6.28)) * uniforms.u_params.intensity;
         const dots = gridDist < dotSize ? 1 : 0;
         
         // Apply theme colors
@@ -227,8 +227,8 @@ export class ShaderRenderer {
     ctx.putImageData(imageData, 0, 0);
   }
 
-  // Shinkai-style gradient implementation
-  private renderShinkai(
+  // Wave-gradient shader implementation (inspired by Shinkai's style)
+  private renderWaveGradient(
     ctx: any,
     width: number,
     height: number,
@@ -236,20 +236,28 @@ export class ShaderRenderer {
   ): void {
     const imageData = ctx.createImageData(width, height);
     const data = imageData.data;
+    const time = Date.now() * 0.001; // Simple time for animation effect
     
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
         const uv_x = x / width;
         const uv_y = y / height;
         
-        // Base gradient position
-        const gradientPos = uv_y + 0.2 * Math.sin(uv_x * 1.5);
+        // Adjust aspect ratio
+        const aspect = width / height;
+        const adj_x = uv_x * aspect;
+        const adj_y = uv_y;
         
-        // Theme-based color palette
-        const skyTop = uniforms.u_colors.background;
-        const skyMid = uniforms.u_colors.secondary;
-        const horizon = uniforms.u_colors.primary;
-        const ground = uniforms.u_colors.accent;
+        // Base gradient with wave distortion
+        const waveIntensity = 0.2 * uniforms.u_params.intensity;
+        const waveScale = 1.5 * uniforms.u_params.scale;
+        const gradientPos = adj_y + waveIntensity * Math.sin(adj_x * waveScale + time * 0.2);
+        
+        // Shinkai-style color palette using theme colors
+        const skyTop = uniforms.u_colors.background;      // Deep background
+        const skyMid = uniforms.u_colors.secondary;       // Mid tone
+        const horizon = uniforms.u_colors.primary;        // Highlight
+        const ground = uniforms.u_colors.accent;          // Accent color
         
         let color: [number, number, number];
         
@@ -276,12 +284,29 @@ export class ShaderRenderer {
           ];
         }
         
-        // Add grain effect
-        const grain = this.noise(x * 0.5, y * 0.5) * 0.15 * uniforms.u_params.intensity;
+        // Add horizontal variation
+        const horizontalVariation = 0.05 * Math.sin(adj_x * 10.0 + time);
+        color[0] += horizontalVariation;
+        color[1] += horizontalVariation * 0.5;
         
-        color[0] = Math.min(1, color[0] + grain);
-        color[1] = Math.min(1, color[1] + grain);
-        color[2] = Math.min(1, color[2] + grain);
+        // Add atmospheric dust/grain
+        const dust = this.fbm(adj_x * 3.0, adj_y * 3.0) * 0.1 * uniforms.u_params.intensity;
+        color[0] += dust;
+        color[1] += dust * 0.9;
+        color[2] += dust * 0.7;
+        
+        // Subtle vignette
+        const center_x = adj_x - aspect * 0.5;
+        const center_y = adj_y - 0.5;
+        const vignette = 1.0 - Math.min(1.0, (center_x * center_x + center_y * center_y) * 0.8);
+        color[0] *= 0.8 + 0.2 * vignette;
+        color[1] *= 0.8 + 0.2 * vignette;
+        color[2] *= 0.8 + 0.2 * vignette;
+        
+        // Clamp colors
+        color[0] = Math.max(0, Math.min(1, color[0]));
+        color[1] = Math.max(0, Math.min(1, color[1]));
+        color[2] = Math.max(0, Math.min(1, color[2]));
         
         const pixelIndex = (y * width + x) * 4;
         data[pixelIndex] = Math.floor(color[0] * 255);
@@ -294,43 +319,6 @@ export class ShaderRenderer {
     ctx.putImageData(imageData, 0, 0);
   }
 
-  // Pixel gradient implementation
-  private renderPixelGradient(
-    ctx: any,
-    width: number,
-    height: number,
-    uniforms: ShaderUniforms
-  ): void {
-    const pixelSize = Math.max(2, Math.floor(16 / uniforms.u_params.scale));
-    
-    for (let y = 0; y < height; y += pixelSize) {
-      for (let x = 0; x < width; x += pixelSize) {
-        const uv_x = x / width;
-        const uv_y = y / height;
-        
-        // Create gradient value
-        const gradientValue = (uv_x + uv_y) * 0.5;
-        
-        // Use palette function with theme colors
-        const t = (gradientValue % 1);
-        const color = [
-          0.5 + 0.5 * Math.cos(6.28318 * (t + 0.0)),
-          0.5 + 0.5 * Math.cos(6.28318 * (t + 0.33)),
-          0.5 + 0.5 * Math.cos(6.28318 * (t + 0.67))
-        ];
-        
-        // Blend with theme colors
-        const blendedColor = [
-          color[0] * uniforms.u_colors.primary[0] + (1 - color[0]) * uniforms.u_colors.background[0],
-          color[1] * uniforms.u_colors.primary[1] + (1 - color[1]) * uniforms.u_colors.background[1],
-          color[2] * uniforms.u_colors.primary[2] + (1 - color[2]) * uniforms.u_colors.background[2]
-        ];
-        
-        ctx.fillStyle = `rgb(${Math.floor(blendedColor[0] * 255)}, ${Math.floor(blendedColor[1] * 255)}, ${Math.floor(blendedColor[2] * 255)})`;
-        ctx.fillRect(x, y, pixelSize, pixelSize);
-      }
-    }
-  }
 
   // Main render function
   renderShaderBackground(
@@ -369,11 +357,9 @@ export class ShaderRenderer {
         case 'disruptor':
           this.renderDisruptor(ctx, width, height, uniforms);
           break;
-        case 'shinkai':
-          this.renderShinkai(ctx, width, height, uniforms);
-          break;
-        case 'pixel-gradient':
-          this.renderPixelGradient(ctx, width, height, uniforms);
+        case 'wave-gradient':
+        case 'wave':
+          this.renderWaveGradient(ctx, width, height, uniforms);
           break;
         default:
           // Default gradient fallback
@@ -398,6 +384,6 @@ export class ShaderRenderer {
   
   // Get available shader names
   getAvailableShaders(): string[] {
-    return ['halftone', 'disruptor', 'shinkai', 'pixel-gradient'];
+    return ['halftone', 'disruptor', 'wave-gradient'];
   }
 }

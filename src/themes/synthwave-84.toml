@@ -14,13 +14,6 @@ lineNumber = "#848bbd"
 gradientFrom = "#1a1529"
 gradientTo = "#3d2c5e"
 
-# Shader background (optional)
-[shader]
-name = "pixel-gradient"
-[shader.parameters]
-intensity = 1.2
-scale = 1.5
-
 # Base syntax colors
 comment = "#848bbd"
 string = "#ff8b39"
@@ -63,3 +56,10 @@ error = "#fe4450"
 warning = "#ff8b39"
 info = "#36f9f6"
 success = "#72f1b8"
+
+# Shader background (optional)
+[shader]
+name = "pixel-gradient"
+[shader.parameters]
+intensity = 1.2
+scale = 1.5

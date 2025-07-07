@@ -109,6 +109,8 @@ export function getTokenColorMapping(theme: CodeTheme): Record<string, string> {
     'function': theme.function,
     'title.function': theme.function,
     'title.function.invoke': theme.function,
+    'title.function-': theme.function,
+    'function-': theme.function,
     
     // Types and classes
     'type': theme.type,
@@ -123,6 +125,8 @@ export function getTokenColorMapping(theme: CodeTheme): Record<string, string> {
     'params': theme.variable,
     'variable.constant': theme.constant,
     'variable.language': theme.constant,
+    'variable.language-': theme.constant,
+    'language-': theme.constant,
     
     // Properties and attributes
     'property': theme.property,

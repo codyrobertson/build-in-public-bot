@@ -140,4 +140,56 @@ Return only the tweet text, nothing else.`;
       return false;
     }
   }
+
+  async generateSummary(content: string, config: Config): Promise<string> {
+    try {
+      logger.debug('Generating summary with AI...');
+
+      const response = await axios.post(
+        'https://openrouter.ai/api/v1/chat/completions',
+        {
+          model: config.ai?.model || 'openai/gpt-4-turbo-preview',
+          messages: [
+            { 
+              role: 'system', 
+              content: 'You are a technical content summarizer. Create concise, informative summaries of code and technical content.' 
+            },
+            { 
+              role: 'user', 
+              content: `Please create a brief summary of this content:\n\n${content}` 
+            }
+          ],
+          temperature: 0.3,
+          max_tokens: 100
+        },
+        {
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://github.com/yourusername/build-in-public-bot',
+            'X-Title': 'Build in Public Bot'
+          }
+        }
+      );
+
+      const summary = response.data.choices[0]?.message?.content;
+      if (!summary) {
+        throw new AIError('No summary generated');
+      }
+
+      return summary.trim();
+    } catch (error: any) {
+      logger.error('Summary generation failed:', error);
+      
+      if (error.response?.status === 401) {
+        throw new AIError('Invalid API key. Please check your OPENROUTER_API_KEY.');
+      }
+      
+      if (error.response?.status === 429) {
+        throw new AIError('Rate limit exceeded. Please try again later.');
+      }
+      
+      throw new AIError(`Summary generation failed: ${error.message}`);
+    }
+  }
 }

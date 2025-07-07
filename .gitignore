@@ -50,3 +50,15 @@ coverage/
 package-lock.json
 yarn.lock
 pnpm-lock.yaml
+
+# Claude Code settings
+.claude/
+
+# Test files and temporary assets
+*-test.png
+emoji-test.png
+test-*.js
+test-*.py
+test-*.tsx
+test-*.sh
+test-output.png

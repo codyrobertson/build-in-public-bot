@@ -114,7 +114,7 @@ export async function serverCommand(options: { port?: number }) {
         {
           theme,
           lineNumbers: options?.lineNumbers,
-          fontSize: options?.fontSize,
+          fontSize: options?.fontSize ? parseInt(options.fontSize) : undefined,
           windowControls: options?.windowControls,
           backgroundColor: options?.backgroundColor,
           width: options?.width
@@ -160,7 +160,7 @@ export async function serverCommand(options: { port?: number }) {
         {
           theme,
           lineNumbers: options?.lineNumbers,
-          fontSize: options?.fontSize,
+          fontSize: options?.fontSize ? parseInt(options.fontSize) : undefined,
           windowControls: options?.windowControls,
           backgroundColor: options?.backgroundColor,
           width: options?.width
@@ -215,7 +215,10 @@ export async function serverCommand(options: { port?: number }) {
           data.code,
           data.language || 'javascript',
           config.screenshots,
-          data.options
+          data.options ? {
+            ...data.options,
+            fontSize: data.options.fontSize ? parseInt(data.options.fontSize) : undefined
+          } : undefined
         );
         
         const screenshotPath = await screenshotService.saveScreenshot(screenshotBuffer);

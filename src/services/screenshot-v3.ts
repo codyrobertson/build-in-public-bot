@@ -9,7 +9,6 @@ import hljs from 'highlight.js';
 import { ThemeLoader } from '../themes/theme-loader';
 import { CodeTheme } from '../themes/theme.types';
 import { ShaderRenderer, ShaderConfig } from './shader-renderer';
-import { EmojiRenderer } from './emoji-renderer';
 
 interface Dimensions {
   canvas: { width: number; height: number };
@@ -46,29 +45,28 @@ interface RenderOptions {
 interface ParsedToken {
   type: string;
   text: string;
+  isEmoji: boolean;
 }
 
-export class ScreenshotService {
-  private static instance: ScreenshotService;
+export class ScreenshotServiceV3 {
+  private static instance: ScreenshotServiceV3;
   private themeLoader: ThemeLoader;
   private shaderRenderer: ShaderRenderer;
-  private emojiRenderer: EmojiRenderer;
 
   private constructor() {
     this.loadFonts();
     this.themeLoader = ThemeLoader.getInstance();
     this.shaderRenderer = ShaderRenderer.getInstance();
-    this.emojiRenderer = EmojiRenderer.getInstance();
     
     const customThemesPath = path.join(process.cwd(), '.bip-themes');
     this.themeLoader.loadCustomThemes(customThemesPath);
   }
 
-  static getInstance(): ScreenshotService {
-    if (!ScreenshotService.instance) {
-      ScreenshotService.instance = new ScreenshotService();
+  static getInstance(): ScreenshotServiceV3 {
+    if (!ScreenshotServiceV3.instance) {
+      ScreenshotServiceV3.instance = new ScreenshotServiceV3();
     }
-    return ScreenshotService.instance;
+    return ScreenshotServiceV3.instance;
   }
 
   private loadFonts() {
@@ -89,28 +87,16 @@ export class ScreenshotService {
         }
       }
 
-      // Load system fonts for better emoji support
-      const systemFonts = [
-        '/System/Library/Fonts/Helvetica.ttc',
-        '/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf'
-      ];
-
-      for (const fontPath of systemFonts) {
-        if (fsSync.existsSync(fontPath)) {
-          registerFont(fontPath, { family: 'System' });
-          break;
-        }
-      }
-
-      // Load emoji font
+      // Load emoji fonts
       const emojiFonts = [
         '/System/Library/Fonts/Apple Color Emoji.ttc',
-        '/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf'
+        '/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf',
+        '/System/Library/Fonts/Helvetica.ttc' // Fallback
       ];
 
       for (const fontPath of emojiFonts) {
         if (fsSync.existsSync(fontPath)) {
-          registerFont(fontPath, { family: 'Emoji' });
+          registerFont(fontPath, { family: 'EmojiFont' });
           logger.debug(`Loaded emoji font: ${fontPath}`);
           break;
         }
@@ -127,11 +113,7 @@ export class ScreenshotService {
     customOptions?: Partial<RenderOptions>
   ): Promise<Buffer> {
     try {
-      logger.debug('Generating code screenshot...');
-      logger.debug('Input code:', code);
-      logger.debug('Language:', language);
-      logger.debug('Config:', config);
-      logger.debug('Custom options:', customOptions);
+      logger.debug('Generating code screenshot with V3 renderer...');
 
       const options: RenderOptions = {
         theme: customOptions?.theme || config.theme || 'dracula',
@@ -150,204 +132,101 @@ export class ScreenshotService {
         shaderParams: customOptions?.shaderParams
       };
 
-      logger.debug('Final render options:', options);
-
-      const buffer = await this.renderScreenshot(code, options);
-      logger.debug('Buffer generated successfully, size:', buffer.length);
-      return buffer;
+      return this.renderScreenshot(code, options);
     } catch (error: any) {
-      logger.error('Screenshot generation failed:', error);
-      logger.error('Stack trace:', error.stack);
       throw new ScreenshotError(`Failed to generate code screenshot: ${error.message}`, error);
     }
   }
 
-  private highlightCode(code: string, language: string): string {
+  private detectEmojis(text: string): boolean {
+    // Comprehensive emoji detection
+    const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]|[\u{1F191}-\u{1F251}]|[\u{1F004}]|[\u{1F0CF}]|[\u{1F170}-\u{1F171}]|[\u{1F17E}-\u{1F17F}]|[\u{1F18E}]|[\u{3030}]|[\u{2B50}]|[\u{2B55}]|[\u{2934}-\u{2935}]|[\u{2B05}-\u{2B07}]|[\u{2B1B}-\u{2B1C}]|[\u{3297}]|[\u{3299}]|[\u{303D}]|[\u{00A9}]|[\u{00AE}]|[\u{2122}]|[\u{23F0}]|[\u{23F3}]|[\u{24C2}]|[\u{23E9}-\u{23EF}]|[\u{25AA}-\u{25AB}]|[\u{25B6}]|[\u{25C0}]|[\u{25FB}-\u{25FE}]|[\u{23F8}-\u{23FA}]/gu;
+    return emojiRegex.test(text);
+  }
+
+  private highlightCodePreservingEmoji(code: string, language: string): Array<{ line: string; hasEmoji: boolean }> {
+    // Split into lines first to preserve structure
+    const lines = code.split('\n');
+    const result: Array<{ line: string; hasEmoji: boolean }> = [];
+
+    // For markdown, handle differently to preserve formatting
+    if (language === 'markdown' || language === 'md') {
+      lines.forEach(line => {
+        result.push({
+          line: this.highlightMarkdownLine(line),
+          hasEmoji: this.detectEmojis(line)
+        });
+      });
+      return result;
+    }
+
+    // For other languages, use hljs but preserve emojis
     try {
-      const languageMap: Record<string, string> = {
-        'js': 'javascript',
-        'ts': 'typescript',
-        'py': 'python',
-        'rb': 'ruby',
-        'yml': 'yaml',
-        'sh': 'bash'
-      };
-
-      const lang = languageMap[language] || language;
+      const highlighted = hljs.highlight(code, { language }).value;
+      const highlightedLines = highlighted.split('\n');
       
-      const result = hljs.getLanguage(lang) 
-        ? hljs.highlight(code, { language: lang })
-        : hljs.highlightAuto(code);
-      
-      return result.value;
+      highlightedLines.forEach((highlightedLine, index) => {
+        const originalLine = lines[index] || '';
+        result.push({
+          line: highlightedLine,
+          hasEmoji: this.detectEmojis(originalLine)
+        });
+      });
     } catch (error) {
-      logger.warn(`Failed to highlight code as ${language}, using plain text`);
-      return code;
+      // Fallback to no highlighting
+      lines.forEach(line => {
+        result.push({
+          line: line,
+          hasEmoji: this.detectEmojis(line)
+        });
+      });
     }
+
+    return result;
   }
 
-  private parseHighlightedLine(html: string): ParsedToken[] {
-    const tokens: ParsedToken[] = [];
-    let remaining = html;
+  private highlightMarkdownLine(line: string): string {
+    // Simple markdown highlighting that preserves emojis
+    let highlighted = line;
     
-    while (remaining.length > 0) {
-      const spanMatch = remaining.match(/^<span class="hljs-([^"]+)">/);
-      
-      if (spanMatch) {
-        const spanType = spanMatch[1].replace(/_/g, '-');
-        const startIndex = spanMatch[0].length;
-        const endIndex = remaining.indexOf('</span>', startIndex);
-        
-        if (endIndex !== -1) {
-          const content = remaining.substring(startIndex, endIndex);
-          const plainContent = content.replace(/<[^>]+>/g, '');
-          
-          tokens.push({
-            type: spanType,
-            text: this.unescapeHtml(plainContent)
-          });
-          
-          remaining = remaining.substring(endIndex + 7);
-        } else {
-          tokens.push({
-            type: 'text',
-            text: remaining
-          });
-          break;
-        }
-      } else {
-        const nextTag = remaining.indexOf('<');
-        const text = nextTag === -1 ? remaining : remaining.substring(0, nextTag);
-        
-        if (text) {
-          tokens.push({
-            type: 'text',
-            text: this.unescapeHtml(text)
-          });
-        }
-        
-        // Fix: ensure we always make progress
-        if (nextTag === -1) {
-          // No more tags, consume all remaining text
-          break;
-        } else if (nextTag === 0) {
-          // Tag at start but no match, skip one character to avoid infinite loop
-          remaining = remaining.substring(1);
-        } else {
-          remaining = remaining.substring(nextTag);
-        }
-      }
+    // Headers
+    if (line.match(/^#{1,6}\s/)) {
+      highlighted = `<span class="hljs-section">${line}</span>`;
+    }
+    // Bold
+    else if (line.includes('**')) {
+      highlighted = line.replace(/\*\*(.*?)\*\*/g, '<span class="hljs-strong">**$1**</span>');
+    }
+    // Code
+    else if (line.includes('`')) {
+      highlighted = line.replace(/`([^`]+)`/g, '<span class="hljs-code">`$1`</span>');
+    }
+    // Lists
+    else if (line.match(/^[\s]*[-*+]\s/)) {
+      highlighted = `<span class="hljs-bullet">${line}</span>`;
     }
     
-    return tokens;
-  }
-
-  private unescapeHtml(html: string): string {
-    return html
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#39;/g, "'");
-  }
-
-  private wrapTokens(
-    tokens: ParsedToken[],
-    ctx: any,
-    maxWidth: number
-  ): Array<ParsedToken[]> {
-    const lines: Array<ParsedToken[]> = [];
-    let currentLine: ParsedToken[] = [];
-    let currentWidth = 0;
-
-    for (const token of tokens) {
-      const words = token.text.split(' ');
-      
-      for (let i = 0; i < words.length; i++) {
-        const word = words[i];
-        const needSpace = i > 0 || currentLine.length > 0;
-        const spaceWidth = needSpace ? ctx.measureText(' ').width : 0;
-        const wordWidth = this.containsEmoji(word) 
-          ? this.emojiRenderer.measureTextWithEmojis(ctx, word, ctx.font.match(/(\d+)px/)?.[1] || 14)
-          : ctx.measureText(word).width;
-        
-        // Check if adding this word would exceed the width
-        if (currentWidth + spaceWidth + wordWidth > maxWidth && currentLine.length > 0) {
-          lines.push(currentLine);
-          currentLine = [];
-          currentWidth = 0;
-        }
-        
-        // If the word itself is too long, break it at character level
-        if (wordWidth > maxWidth) {
-          // Finish current line if it has content
-          if (currentLine.length > 0) {
-            lines.push(currentLine);
-            currentLine = [];
-            currentWidth = 0;
-          }
-          
-          // Break the word
-          let chars = word.split('');
-          let charBuffer = '';
-          
-          for (const char of chars) {
-            const charWidth = ctx.measureText(char).width;
-            if (currentWidth + charWidth > maxWidth && charBuffer) {
-              currentLine.push({ type: token.type, text: charBuffer });
-              lines.push(currentLine);
-              currentLine = [];
-              currentWidth = 0;
-              charBuffer = '';
-            }
-            charBuffer += char;
-            currentWidth += charWidth;
-          }
-          
-          if (charBuffer) {
-            currentLine.push({ type: token.type, text: charBuffer });
-          }
-        } else {
-          // Add space if needed
-          if (needSpace && currentLine.length > 0) {
-            const lastToken = currentLine[currentLine.length - 1];
-            lastToken.text += ' ';
-            currentWidth += spaceWidth;
-          }
-          
-          // Add the word
-          if (currentLine.length > 0 && currentLine[currentLine.length - 1].type === token.type) {
-            currentLine[currentLine.length - 1].text += word;
-          } else {
-            currentLine.push({ type: token.type, text: word });
-          }
-          currentWidth += wordWidth;
-        }
-      }
-    }
-    
-    if (currentLine.length > 0) {
-      lines.push(currentLine);
-    }
-    
-    return lines;
+    return highlighted;
   }
 
   private calculateDimensions(
-    lineCount: number,
+    lineData: Array<{ text: string; width: number }>,
     options: RenderOptions
   ): Dimensions {
-    const scale = 2;
-    const outerPadding = 40;
+    const scale = 2; // Retina scale
+    const outerPadding = 40; // Space for shadow
     const windowBarHeight = options.windowControls ? 36 : 0;
     const lineHeight = options.fontSize * 1.5;
     
+    // Window dimensions
     const windowWidth = options.width;
-    const windowHeight = lineCount * lineHeight + (options.padding * 2) + windowBarHeight;
+    const windowHeight = lineData.length * lineHeight + (options.padding * 2) + windowBarHeight;
     
+    // Canvas dimensions (includes outer padding)
     const canvasWidth = windowWidth + (outerPadding * 2);
     const canvasHeight = windowHeight + (outerPadding * 2);
     
+    // Content area
     const contentX = outerPadding + options.padding + (options.lineNumbers ? 50 : 0);
     const contentY = outerPadding + windowBarHeight + options.padding;
     const contentWidth = windowWidth - (options.padding * 2) - (options.lineNumbers ? 50 : 0);
@@ -367,67 +246,119 @@ export class ScreenshotService {
         x: contentX * scale,
         y: contentY * scale,
         width: contentWidth * scale,
-        height: (lineCount * lineHeight) * scale
+        height: (lineData.length * lineHeight) * scale
       },
       scale
     };
+  }
+
+  private wrapText(
+    text: string, 
+    ctx: any,
+    maxWidth: number
+  ): string[] {
+    const words = text.split(' ');
+    const lines: string[] = [];
+    let currentLine = '';
+
+    for (const word of words) {
+      const testLine = currentLine ? `${currentLine} ${word}` : word;
+      const metrics = ctx.measureText(testLine);
+      
+      if (metrics.width > maxWidth && currentLine) {
+        lines.push(currentLine);
+        
+        // Check if single word is too long
+        if (ctx.measureText(word).width > maxWidth) {
+          // Break word at character level
+          const chars = word.split('');
+          let charLine = '';
+          
+          for (const char of chars) {
+            const testCharLine = charLine + char;
+            if (ctx.measureText(testCharLine).width > maxWidth && charLine) {
+              lines.push(charLine);
+              charLine = char;
+            } else {
+              charLine = testCharLine;
+            }
+          }
+          
+          currentLine = charLine;
+        } else {
+          currentLine = word;
+        }
+      } else {
+        currentLine = testLine;
+      }
+    }
+    
+    if (currentLine) {
+      lines.push(currentLine);
+    }
+    
+    return lines.length > 0 ? lines : [''];
   }
 
   private async renderScreenshot(
     code: string,
     options: RenderOptions
   ): Promise<Buffer> {
-    logger.debug('renderScreenshot called');
-    logger.debug('Theme:', options.theme);
-    
+    // Get theme
     const syntaxTheme = this.themeLoader.getTheme(options.theme) || this.themeLoader.getTheme('dracula')!;
-    logger.debug('Syntax theme loaded:', syntaxTheme ? 'yes' : 'no');
-    
     const bgColor = options.backgroundColor || syntaxTheme.background;
-    logger.debug('Background color:', bgColor);
 
-    // Highlight code
-    const highlightedCode = this.highlightCode(code, options.language);
-    logger.debug('Code highlighted, length:', highlightedCode.length);
-    
-    const lines = highlightedCode.split('\n');
-    logger.debug('Line count:', lines.length);
+    // Highlight code while preserving emojis
+    const highlightedLines = this.highlightCodePreservingEmoji(code, options.language);
 
-    // Create temp canvas for measurement
+    // Create temporary canvas for text measurement
     const tempCanvas = createCanvas(100, 100);
     const tempCtx = tempCanvas.getContext('2d');
     tempCtx.font = `${options.fontSize}px ${options.fontFamily}`;
 
-    // Process all lines and wrap if needed
-    const processedLines: Array<ParsedToken[]> = [];
+    // Calculate wrapped lines
+    const lineData: Array<{ text: string; width: number; hasEmoji: boolean; tokens: ParsedToken[] }> = [];
     const maxTextWidth = options.width - (options.padding * 2) - (options.lineNumbers ? 50 : 0);
-    logger.debug('Max text width:', maxTextWidth);
 
-    for (const line of lines) {
-      const tokens = this.parseHighlightedLine(line);
-      
+    highlightedLines.forEach(({ line, hasEmoji }) => {
       if (options.lineWrap) {
-        const wrappedLines = this.wrapTokens(tokens, tempCtx, maxTextWidth);
-        processedLines.push(...wrappedLines);
+        // Parse the highlighted line to get plain text for measurement
+        const plainText = line.replace(/<[^>]+>/g, '');
+        const wrappedPlainLines = this.wrapText(plainText, tempCtx, maxTextWidth);
+        
+        // For each wrapped line, preserve the highlighting
+        wrappedPlainLines.forEach(wrappedLine => {
+          lineData.push({
+            text: wrappedLine,
+            width: tempCtx.measureText(wrappedLine).width,
+            hasEmoji,
+            tokens: this.parseHighlightedLine(line) // Parse once
+          });
+        });
       } else {
-        processedLines.push(tokens);
+        lineData.push({
+          text: line,
+          width: tempCtx.measureText(line.replace(/<[^>]+>/g, '')).width,
+          hasEmoji,
+          tokens: this.parseHighlightedLine(line)
+        });
       }
-    }
+    });
 
-    logger.debug('Processed lines count:', processedLines.length);
-
-    // Calculate dimensions based on processed lines
-    const dims = this.calculateDimensions(processedLines.length, options);
-    logger.debug('Canvas dimensions:', dims);
+    // Calculate final dimensions
+    const dims = this.calculateDimensions(lineData, options);
+    logger.debug(`Canvas: ${dims.canvas.width}x${dims.canvas.height}`);
+    logger.debug(`Lines: ${lineData.length}`);
 
     // Create canvas
     const canvas = createCanvas(dims.canvas.width, dims.canvas.height);
     const ctx = canvas.getContext('2d');
     
+    // Enable high quality rendering
     ctx.imageSmoothingEnabled = true;
     (ctx as any).imageSmoothingQuality = 'high';
 
-    // Render background
+    // Step 1: Render background
     if (options.shader || syntaxTheme.shader?.name) {
       const shaderName = options.shader || syntaxTheme.shader?.name || 'halftone';
       const shaderConfig: Partial<ShaderConfig> = {
@@ -456,7 +387,7 @@ export class ScreenshotService {
       ctx.fillRect(0, 0, dims.canvas.width, dims.canvas.height);
     }
 
-    // Draw window with shadow
+    // Step 2: Draw window with shadow
     ctx.save();
     ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
     ctx.shadowBlur = 20 * dims.scale;
@@ -474,76 +405,145 @@ export class ScreenshotService {
     );
     ctx.restore();
 
-    // Draw window controls
+    // Step 3: Draw window controls
     if (options.windowControls) {
       this.drawWindowControls(ctx, dims.window, dims.scale);
     }
 
-    // Set up text rendering
+    // Step 4: Draw text
     ctx.font = `${options.fontSize * dims.scale}px ${options.fontFamily}`;
     ctx.textBaseline = 'top';
 
-    // Render lines
-    for (let lineIndex = 0; lineIndex < processedLines.length; lineIndex++) {
-      const tokens = processedLines[lineIndex];
-      const y = dims.content.y + (lineIndex * options.fontSize * 1.5 * dims.scale);
+    lineData.forEach((line, index) => {
+      const y = dims.content.y + (index * options.fontSize * 1.5 * dims.scale);
       
       // Draw line number
       if (options.lineNumbers) {
         ctx.fillStyle = syntaxTheme.lineNumber || syntaxTheme.comment;
         ctx.fillText(
-          String(lineIndex + 1).padStart(3, ' '),
+          String(index + 1).padStart(3, ' '),
           dims.window.x + options.padding * dims.scale,
           y
         );
       }
 
-      // Draw tokens
-      let x = dims.content.x;
-      for (const token of tokens) {
-        ctx.fillStyle = this.getTokenColor(token.type, syntaxTheme);
-        
-        // Use emoji renderer for text containing emojis
-        if (this.containsEmoji(token.text)) {
-          const width = await this.emojiRenderer.renderTextWithEmojis(
-            ctx,
-            token.text,
-            x,
-            y,
-            options.fontSize * dims.scale
-          );
-          x += width;
-        } else {
-          ctx.fillText(token.text, x, y);
-          x += ctx.measureText(token.text).width;
-        }
-      }
-    }
+      // Draw the line with proper emoji handling
+      this.drawLineWithEmoji(ctx, line, dims.content.x, y, syntaxTheme, options.fontSize * dims.scale);
+    });
 
-    logger.debug('Rendering complete, generating buffer...');
-    
-    try {
-      const buffer = canvas.toBuffer('image/png', {
-        compressionLevel: 9,
-        filters: Canvas.PNG_FILTER_NONE
-      }) as Buffer;
-      
-      logger.debug('Buffer created successfully, size:', buffer.length);
-      return buffer;
-    } catch (bufferError: any) {
-      logger.error('Failed to create buffer:', bufferError);
-      throw bufferError;
-    }
+    // Convert to buffer
+    return canvas.toBuffer('image/png', {
+      compressionLevel: 9,
+      filters: Canvas.PNG_FILTER_NONE
+    }) as Buffer;
   }
 
-  private containsEmoji(text: string): boolean {
-    const emojiRegex = /[\u{1F300}-\u{1F9FF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{2600}-\u{26FF}]|[\u{2700}-\u{27BF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F1E0}-\u{1F1FF}]/gu;
-    return emojiRegex.test(text);
+  private parseHighlightedLine(html: string): ParsedToken[] {
+    const tokens: ParsedToken[] = [];
+    let remaining = html;
+    
+    while (remaining.length > 0) {
+      const spanMatch = remaining.match(/^<span class="hljs-([\w-]+)">/);
+      
+      if (spanMatch) {
+        const spanType = spanMatch[1];
+        const startIndex = spanMatch[0].length;
+        const endIndex = remaining.indexOf('</span>', startIndex);
+        
+        if (endIndex !== -1) {
+          const content = remaining.substring(startIndex, endIndex);
+          // Don't parse nested spans, just get the text
+          const plainContent = content.replace(/<[^>]+>/g, '');
+          
+          tokens.push({
+            type: spanType,
+            text: plainContent,
+            isEmoji: this.detectEmojis(plainContent)
+          });
+          
+          remaining = remaining.substring(endIndex + 7);
+        } else {
+          // Malformed, treat as text
+          tokens.push({
+            type: 'text',
+            text: remaining,
+            isEmoji: this.detectEmojis(remaining)
+          });
+          break;
+        }
+      } else {
+        // Plain text until next tag
+        const nextTag = remaining.indexOf('<');
+        const text = nextTag === -1 ? remaining : remaining.substring(0, nextTag);
+        
+        if (text) {
+          tokens.push({
+            type: 'text',
+            text: this.unescapeHtml(text),
+            isEmoji: this.detectEmojis(text)
+          });
+        }
+        
+        remaining = nextTag === -1 ? '' : remaining.substring(nextTag);
+      }
+    }
+    
+    return tokens;
+  }
+
+  private drawLineWithEmoji(
+    ctx: any,
+    line: { text: string; hasEmoji: boolean; tokens: ParsedToken[] },
+    x: number,
+    y: number,
+    theme: CodeTheme,
+    fontSize: number
+  ) {
+    let currentX = x;
+    
+    // If we have tokens from parsing, use them
+    if (line.tokens && line.tokens.length > 0) {
+      line.tokens.forEach(token => {
+        ctx.fillStyle = this.getTokenColor(token.type, theme);
+        
+        if (token.isEmoji) {
+          // Draw with emoji font
+          ctx.save();
+          ctx.font = `${fontSize}px Apple Color Emoji, Segoe UI Emoji, ${ctx.font}`;
+          ctx.fillText(token.text, currentX, y);
+          ctx.restore();
+        } else {
+          ctx.fillText(token.text, currentX, y);
+        }
+        
+        currentX += ctx.measureText(token.text).width;
+      });
+    } else {
+      // Fallback to simple text drawing
+      ctx.fillStyle = theme.foreground;
+      if (line.hasEmoji) {
+        ctx.save();
+        ctx.font = `${fontSize}px Apple Color Emoji, Segoe UI Emoji, ${ctx.font}`;
+        ctx.fillText(line.text, currentX, y);
+        ctx.restore();
+      } else {
+        ctx.fillText(line.text, currentX, y);
+      }
+    }
   }
 
   private getTokenColor(tokenType: string, theme: CodeTheme): string {
     const colorMapping = this.themeLoader.getColorMapping(theme);
     return colorMapping[tokenType] || theme.foreground;
+  }
+
+  private unescapeHtml(html: string): string {
+    return html
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
   }
 
   private drawRoundedRect(
@@ -575,9 +575,11 @@ export class ScreenshotService {
     const startX = window.x + (20 * scale);
     const barHeight = 36 * scale;
 
+    // Window bar background
     ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
     ctx.fillRect(window.x, window.y, window.width, barHeight);
 
+    // Traffic lights
     const colors = ['#ff5f56', '#ffbd2e', '#27c93f'];
     colors.forEach((color, i) => {
       ctx.fillStyle = color;
@@ -589,6 +591,7 @@ export class ScreenshotService {
 
   // Compatibility methods
   async readCodeFile(filePath: string, lineRange?: string): Promise<{ code: string; language: string }> {
+    // Same implementation as V2
     try {
       const absolutePath = path.resolve(filePath);
       const allowedDir = path.resolve(process.cwd());
@@ -620,17 +623,7 @@ export class ScreenshotService {
         '.md': 'markdown',
         '.json': 'json',
         '.html': 'html',
-        '.css': 'css',
-        '.rb': 'ruby',
-        '.java': 'java',
-        '.cpp': 'cpp',
-        '.c': 'c',
-        '.cs': 'csharp',
-        '.go': 'go',
-        '.rs': 'rust',
-        '.php': 'php',
-        '.swift': 'swift',
-        '.kt': 'kotlin'
+        '.css': 'css'
       };
 
       const language = languageMap[ext] || 'text';
