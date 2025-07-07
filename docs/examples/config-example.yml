@@ -1,0 +1,46 @@
+# Complete Configuration Example
+version: "1.0.0"
+
+# 🤖 AI Configuration
+ai:
+  provider: "openrouter"
+  model: "openai/gpt-4-turbo-preview"
+  temperature: 0.8
+
+# 🐦 Twitter Integration  
+twitter:
+  username: "yourhandle"
+  postingMethod: "browser"  # or "api"
+
+# ✍️ Content Style
+style:
+  tone: "casual"  # casual, professional, technical, inspiring
+  emojis:
+    frequency: "medium"  # low, medium, high
+    preferred: ["🚀", "💻", "⚡", "🎯", "✨"]
+  hashtags:
+    always: ["#buildinpublic"]
+    contextual: ["#coding", "#typescript", "#startup"]
+  examples:
+    - "Just shipped a new feature! Users can now..."
+    - "Debugging session complete 🐛 → ✅"
+    - "Refactored the entire auth system ⚡"
+
+# 📸 Screenshot Settings
+screenshots:
+  theme: "synthwave-84"
+  backgroundColor: "#2d1b69"
+  windowTheme: "mac"
+  padding: 32
+  language: "auto"
+  
+  # 🎨 Advanced shader effects
+  shader:
+    name: "wave-gradient"
+    colors:
+      primary: "#8be9fd"
+      secondary: "#50fa7b" 
+      accent: "#ff79c6"
+    parameters:
+      intensity: 1.2
+      scale: 1.5

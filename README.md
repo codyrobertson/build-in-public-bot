@@ -40,10 +40,29 @@ bip post "Just shipped a new feature!"
 bip code src/app.js "Implemented real-time updates"
 ```
 
+## Visual Examples
+
+### Code Screenshots with Different Themes
+
+**Quick Start Example** (Dracula theme):
+![Quick Start Example](docs/images/quick-start-example.png)
+
+**Theme Showcase** (Synthwave-84 theme with Wave Gradient shader):
+![Theme Showcase](docs/images/theme-showcase.png)
+
+**Service Architecture** (Cyberpunk theme with Disruptor shader):
+![Service Architecture](docs/images/service-architecture.png)
+
+**Configuration Example** (Nord theme):
+![Configuration Example](docs/images/config-example.png)
+
+**CLI Commands** (Gruvbox Dark theme with Halftone shader):
+![CLI Commands](docs/images/cli-commands.png)
+
 ## Features
 
 - 🤖 **AI-Powered Tweet Generation** - Uses GPT-4 to create engaging tweets
-- 📸 **Beautiful Code Screenshots** - Generate syntax-highlighted images via Carbon.sh
+- 📸 **Beautiful Code Screenshots** - Generate Canvas-based images with syntax highlighting, emoji support, and shader effects
 - 🎨 **Customizable Style** - Configure tone, emojis, and hashtags
 - 🐦 **Direct Twitter Posting** - Browser automation (no API keys needed)
 - 📝 **Draft Management** - Save tweets for later
