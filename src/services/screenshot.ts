@@ -11,6 +11,13 @@ import { logger } from '../utils/logger';
 import { ThemeLoader } from './theme-loader';
 import { WasmRasterizer } from './wasm-rasterizer';
 
+interface ThemeColors {
+  primary: string;
+  secondary: string;
+  accent: string;
+  background: string;
+}
+
 export class ScreenshotService {
   private static instance: ScreenshotService;
   private themeLoader: ThemeLoader;
@@ -171,8 +178,11 @@ export class ScreenshotService {
           finalCtx.fillRect(0, 0, totalWidth, totalHeight);
           await this.applyShaderEffect(finalCtx, customOptions.shader, totalWidth, totalHeight, theme);
         } else {
-          // Use WASM rasterizer for scanline-free shader rendering
-          const backgroundRasterizer = new WasmRasterizer(totalWidth, totalHeight);
+          // Extract theme colors for shader rendering
+          const themeColors = this.extractThemeColors(theme);
+          
+          // Use WASM rasterizer with theme-aware colors for scanline-free shader rendering
+          const backgroundRasterizer = new WasmRasterizer(totalWidth, totalHeight, themeColors);
           
           switch (customOptions.shader) {
             case 'wave-gradient':
@@ -604,6 +614,66 @@ export class ScreenshotService {
       g: parseInt(result[2], 16),
       b: parseInt(result[3], 16)
     } : { r: 255, g: 255, b: 255 };
+  }
+
+  private extractThemeColors(theme: any): ThemeColors {
+    // Use explicit shader colors if defined in theme
+    if (theme.shader?.colors) {
+      return {
+        primary: theme.shader.colors.primary,
+        secondary: theme.shader.colors.secondary,
+        accent: theme.shader.colors.accent,
+        background: theme.background
+      };
+    }
+
+    // Intelligently map theme syntax colors to shader colors based on theme name
+    const themeName = theme.name?.toLowerCase() || '';
+    
+    if (themeName.includes('synthwave')) {
+      return {
+        primary: theme.keyword || '#ff79c6',      // Pink keywords
+        secondary: theme.function || '#50fa7b',   // Green functions  
+        accent: theme.string || '#f1fa8c',        // Yellow strings
+        background: theme.background || '#2d1b69'
+      };
+    } else if (themeName.includes('cyberpunk')) {
+      return {
+        primary: theme.keyword || '#ff0080',      // Magenta keywords
+        secondary: theme.function || '#00ff80',   // Green functions
+        accent: theme.number || '#00ffff',        // Cyan numbers
+        background: theme.background || '#0a0a0a'
+      };
+    } else if (themeName.includes('dracula')) {
+      return {
+        primary: theme.keyword || '#ff79c6',      // Pink keywords
+        secondary: theme.variable || '#8be9fd',   // Cyan variables
+        accent: theme.string || '#f1fa8c',        // Yellow strings
+        background: theme.background || '#282a36'
+      };
+    } else if (themeName.includes('nord')) {
+      return {
+        primary: theme.keyword || '#81a1c1',      // Light blue keywords
+        secondary: theme.function || '#88c0d0',   // Cyan functions
+        accent: theme.string || '#a3be8c',        // Green strings
+        background: theme.background || '#2e3440'
+      };
+    } else if (themeName.includes('gruvbox')) {
+      return {
+        primary: theme.keyword || '#fb4934',      // Red keywords
+        secondary: theme.function || '#fabd2f',   // Yellow functions
+        accent: theme.string || '#b8bb26',        // Green strings
+        background: theme.background || '#282828'
+      };
+    }
+
+    // Generic fallback using semantic syntax highlighting colors
+    return {
+      primary: theme.keyword || theme.text || '#ff6b6b',
+      secondary: theme.function || theme.variable || '#4ecdc4',
+      accent: theme.string || theme.number || '#45b7d1',
+      background: theme.background || '#2a2a2a'
+    };
   }
 
 

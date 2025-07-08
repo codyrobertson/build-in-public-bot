@@ -13,7 +13,15 @@
       "Bash(gh repo create:*)",
       "Bash(git checkout:*)",
       "Bash(gh repo view:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "Bash(cp:*)",
+      "Bash(rg:*)",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(true)",
+      "Bash(grep:*)",
+      "Bash(git rm:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

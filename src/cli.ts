@@ -2,6 +2,7 @@
 
 import 'dotenv/config';
 import { Command } from 'commander';
+import chalk from 'chalk';
 import { logger } from './utils/logger';
 import { handleError } from './utils/errors';
 import { initCommand } from './commands/init';
@@ -14,6 +15,10 @@ import { watchCommand } from './commands/watch';
 import { summaryCommand } from './commands/summary';
 import { autoCommand } from './commands/auto';
 import { setupApiCommand } from './commands/setup-api';
+import configCommand from './commands/config';
+import screenshotCommand from './commands/screenshot';
+import doctorCommand from './commands/doctor';
+import completionCommand from './commands/completion';
 
 const packageJson = require('../package.json');
 
@@ -28,16 +33,42 @@ process.on('uncaughtException', (error) => {
   handleError(error);
 });
 
+// Enhanced program with global options
 program
   .name('bip')
   .description('AI-powered CLI bot for automating build-in-public tweets')
-  .version(packageJson.version)
+  .version(packageJson.version, '-V, --version', 'output the version number')
+  .option('-v, --verbose', 'verbose output')
+  .option('-q, --quiet', 'quiet output (errors only)')
   .option('-d, --debug', 'enable debug mode')
+  .option('--dry-run', 'show what would be done without executing')
+  .option('--config <file>', 'use custom config file')
+  .option('--no-color', 'disable colored output')
+  .option('--json', 'output in JSON format where applicable')
   .hook('preAction', (thisCommand) => {
-    if (thisCommand.opts().debug) {
+    const opts = thisCommand.opts();
+    
+    // Set debug mode
+    if (opts.debug) {
       process.env.DEBUG = 'true';
       logger.debug('Debug mode enabled');
     }
+    
+    // Set verbosity
+    if (opts.quiet) {
+      process.env.LOG_LEVEL = 'error';
+    } else if (opts.verbose) {
+      process.env.LOG_LEVEL = 'debug';
+    }
+    
+    // Disable colors if requested
+    if (opts.noColor) {
+      chalk.level = 0;
+    }
+  })
+  .configureHelp({
+    sortSubcommands: true,
+    subcommandTerm: (cmd) => cmd.name() + ' ' + cmd.usage()
   });
 
 // Initialize command
@@ -118,17 +149,29 @@ program
     }
   });
 
-// Add watch command
+// Add commands in standardized way
 program.addCommand(watchCommand);
-
-// Add summary command
 program.addCommand(summaryCommand);
-
-// Add auto command
 program.addCommand(autoCommand);
-
-// Add setup-api command
 program.addCommand(setupApiCommand);
+program.addCommand(configCommand);
+program.addCommand(screenshotCommand);
+program.addCommand(doctorCommand);
+program.addCommand(completionCommand);
+
+// Add helpful examples to main help
+program.addHelpText('after', `
+Examples:
+  $ bip init                      Initialize configuration
+  $ bip post "Just fixed a bug"   Generate and post a tweet
+  $ bip code app.js               Post code screenshot
+  $ bip screenshot src/app.ts     Generate screenshot only
+  $ bip config show               Show current configuration
+  $ bip doctor                    Run health checks
+
+For more help on a specific command:
+  $ bip <command> --help
+`);
 
 // Parse arguments
 program.parse();

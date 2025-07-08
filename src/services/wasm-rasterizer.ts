@@ -1,15 +1,47 @@
 // Pure software rasterizer in TypeScript that compiles to WASM-like performance
 // This avoids Canvas getImageData/putImageData which causes scanlines
 
+interface ThemeColors {
+  primary: string;
+  secondary: string;
+  accent: string;
+  background: string;
+}
+
 export class WasmRasterizer {
   private width: number;
   private height: number;
   private pixels: Uint8Array;
+  private themeColors?: ThemeColors;
 
-  constructor(width: number, height: number) {
+  constructor(width: number, height: number, themeColors?: ThemeColors) {
     this.width = width;
     this.height = height;
     this.pixels = new Uint8Array(width * height * 4);
+    this.themeColors = themeColors;
+  }
+
+  private hexToRgb(hex: string): { r: number; g: number; b: number } {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? {
+      r: parseInt(result[1], 16),
+      g: parseInt(result[2], 16),
+      b: parseInt(result[3], 16)
+    } : { r: 255, g: 255, b: 255 };
+  }
+
+  private getThemedColor(type: 'primary' | 'secondary' | 'accent' | 'background'): { r: number; g: number; b: number } {
+    if (!this.themeColors) {
+      // Fallback colors if no theme provided
+      const fallback = {
+        primary: '#ff6b6b',
+        secondary: '#4ecdc4', 
+        accent: '#45b7d1',
+        background: '#2a2a2a'
+      };
+      return this.hexToRgb(fallback[type]);
+    }
+    return this.hexToRgb(this.themeColors[type]);
   }
 
   private setPixel(x: number, y: number, r: number, g: number, b: number, a: number = 255): void {
@@ -46,11 +78,32 @@ export class WasmRasterizer {
         // Base gradient with wave
         const gradientPos = v + 0.2 * Math.sin(uvAdjusted.x * 1.5 + time * 0.2) - mouseInfluence;
         
-        // Shinkai-style colors
-        const skyTop = { r: 0.05, g: 0.2, b: 0.5 };     // Deep blue
-        const skyMid = { r: 0.5, g: 0.6, b: 0.8 };      // Light blue
-        const horizon = { r: 1.0, g: 0.8, b: 0.6 };     // Orange/pink sunset
-        const ground = { r: 0.2, g: 0.15, b: 0.3 };     // Dark purple ground
+        // Theme-aware gradient colors
+        const primaryColor = this.getThemedColor('primary');
+        const secondaryColor = this.getThemedColor('secondary');
+        const accentColor = this.getThemedColor('accent');
+        const bgColor = this.getThemedColor('background');
+        
+        const skyTop = { 
+          r: bgColor.r / 255 * 0.7, 
+          g: bgColor.g / 255 * 0.7, 
+          b: bgColor.b / 255 * 0.7 
+        };
+        const skyMid = { 
+          r: secondaryColor.r / 255 * 0.8, 
+          g: secondaryColor.g / 255 * 0.8, 
+          b: secondaryColor.b / 255 * 0.8 
+        };
+        const horizon = { 
+          r: accentColor.r / 255, 
+          g: accentColor.g / 255, 
+          b: accentColor.b / 255 
+        };
+        const ground = { 
+          r: primaryColor.r / 255 * 0.6, 
+          g: primaryColor.g / 255 * 0.6, 
+          b: primaryColor.b / 255 * 0.6 
+        };
         
         let color;
         
@@ -163,12 +216,20 @@ export class WasmRasterizer {
           brightness = Math.max(brightness, (1.0 - fallPosition / trailLength) * 0.5);
         }
         
-        // Green matrix color
-        const green = Math.floor(brightness * 255);
-        const red = Math.floor(brightness * 0.3 * 255);
-        const blue = Math.floor(brightness * 0.1 * 255);
+        // Theme-aware matrix colors
+        const primaryColor = this.getThemedColor('primary');
+        const secondaryColor = this.getThemedColor('secondary');
         
-        this.setPixel(x, y, red, green, blue);
+        // Use primary color for main characters, secondary for trail
+        const mainColor = primaryColor;
+        const trailColor = secondaryColor;
+        
+        // Blend between trail and main color based on brightness
+        const r = Math.floor((trailColor.r + (mainColor.r - trailColor.r) * brightness) * brightness);
+        const g = Math.floor((trailColor.g + (mainColor.g - trailColor.g) * brightness) * brightness);
+        const b = Math.floor((trailColor.b + (mainColor.b - trailColor.b) * brightness) * brightness);
+        
+        this.setPixel(x, y, r, g, b);
       }
     }
     
@@ -177,66 +238,73 @@ export class WasmRasterizer {
 
   renderHalftone(): Uint8Array {
     const time = Date.now() * 0.001;
-    const mouseX = 0.5;
-    const mouseY = 0.5;
     
     for (let y = 0; y < this.height; y++) {
       for (let x = 0; x < this.width; x++) {
-        // Normalized coordinates
-        let u = x / this.width;
-        let v = y / this.height;
+        // Normalized coordinates (0 to 1)
+        const u = x / this.width;
+        const v = y / this.height;
         
-        // Adjust for aspect ratio
-        const aspect = this.width / this.height;
-        u = u * 2.0 - 1.0;
-        v = v * 2.0 - 1.0;
-        u *= aspect;
+        // Apply theme colors for consistent full coverage
+        const primaryColor = this.getThemedColor('primary');
+        const secondaryColor = this.getThemedColor('secondary');
+        const bgColor = this.getThemedColor('background');
         
-        // Mouse influence
-        const mousePos = { x: mouseX * 2.0 - 1.0, y: mouseY * 2.0 - 1.0 };
-        mousePos.x *= aspect;
-        const mouseDist = Math.sqrt(Math.pow(u - mousePos.x, 2) + Math.pow(v - mousePos.y, 2));
-        const mouseInfluence = this.smoothstep(0.5, 0.0, mouseDist) * 0.3;
+        // Create base gradient from background to secondary
+        const baseGradient = 0.4 + 0.3 * this.fbm(u * 2.0, v * 2.0);
         
-        // Time-based animation
-        const t = time * 0.2;
+        // Generate halftone dots with regular grid
+        const dotScale = 20.0; // Consistent dot spacing
+        const gridU = (u * dotScale) % 1.0;
+        const gridV = (v * dotScale) % 1.0;
         
-        // Generate organic flow field
-        const p = { x: u, y: v };
-        p.x += Math.sin(t * 0.7) * 0.3;
-        p.y += Math.cos(t * 0.5) * 0.3;
+        // Distance from center of each grid cell (0.5, 0.5)
+        const dotDist = Math.sqrt(
+          Math.pow(gridU - 0.5, 2) + 
+          Math.pow(gridV - 0.5, 2)
+        );
         
-        // Create flowing pattern with multiple layers of noise
-        const flow = this.fbm(p.x * 3.0 + this.fbm(p.x * 2.0 + t, p.y * 2.0) + t, 
-                              p.y * 3.0 + this.fbm(p.x * 2.0, p.y * 2.0 + t));
+        // Vary dot size based on position and time for organic feel
+        const dotSizeVariation = 0.3 + 0.2 * this.fbm(u * 4.0 + time * 0.1, v * 4.0);
+        const maxDotRadius = 0.35 * dotSizeVariation;
         
-        // Generate small dots
-        const scale = 15.0 + mouseInfluence * 10.0;
-        const grid = {
-          x: (p.x * scale) % 1.0 - 0.5,
-          y: (p.y * scale) % 1.0 - 0.5
-        };
-        const gridDist = Math.sqrt(grid.x * grid.x + grid.y * grid.y);
+        // Create smooth dots
+        const dotIntensity = this.smoothstep(maxDotRadius, maxDotRadius - 0.1, dotDist);
         
-        // Animate dot size based on flow field
-        const dotSize = 0.1 + 0.05 * Math.sin(flow * 6.28 + t);
+        // Add flowing movement to the pattern
+        const flow = this.fbm(u * 3.0 + time * 0.3, v * 3.0 + time * 0.2) * 0.2;
         
-        // Create dots with soft edges
-        let dots = this.smoothstep(dotSize, dotSize - 0.01, gridDist);
+        // Combine base gradient, dots, and flow
+        const totalIntensity = Math.max(0, Math.min(1, 
+          baseGradient * 0.6 + dotIntensity * 0.8 + flow
+        ));
         
-        // Organic variation in dot intensity
-        dots *= 0.7 + 0.3 * this.fbm(p.x * 2.0 + t * 0.5, p.y * 2.0);
+        // Three-color blend based on intensity
+        let r, g, b;
+        if (totalIntensity < 0.33) {
+          // Background to secondary blend
+          const t = totalIntensity * 3.0;
+          r = Math.floor(bgColor.r + (secondaryColor.r - bgColor.r) * t);
+          g = Math.floor(bgColor.g + (secondaryColor.g - bgColor.g) * t);
+          b = Math.floor(bgColor.b + (secondaryColor.b - bgColor.b) * t);
+        } else if (totalIntensity < 0.66) {
+          // Secondary to primary blend
+          const t = (totalIntensity - 0.33) * 3.0;
+          r = Math.floor(secondaryColor.r + (primaryColor.r - secondaryColor.r) * t);
+          g = Math.floor(secondaryColor.g + (primaryColor.g - secondaryColor.g) * t);
+          b = Math.floor(secondaryColor.b + (primaryColor.b - secondaryColor.b) * t);
+        } else {
+          // Primary with highlights
+          const t = (totalIntensity - 0.66) * 3.0;
+          const highlightR = Math.min(255, primaryColor.r + 40);
+          const highlightG = Math.min(255, primaryColor.g + 40);
+          const highlightB = Math.min(255, primaryColor.b + 40);
+          r = Math.floor(primaryColor.r + (highlightR - primaryColor.r) * t);
+          g = Math.floor(primaryColor.g + (highlightG - primaryColor.g) * t);
+          b = Math.floor(primaryColor.b + (highlightB - primaryColor.b) * t);
+        }
         
-        // Add subtle flow distortion
-        dots += 0.05 * flow;
-        
-        // Add subtle vignette
-        const vignette = 1.0 - this.smoothstep(0.5, 1.5, Math.sqrt(u * u + v * v));
-        dots *= vignette;
-        
-        // Convert to grayscale
-        const gray = Math.floor(Math.max(0, Math.min(1, dots)) * 255);
-        this.setPixel(x, y, gray, gray, gray);
+        this.setPixel(x, y, r, g, b);
       }
     }
     
@@ -285,10 +353,26 @@ export class WasmRasterizer {
         const brightness = 0.5 + 0.5 * pattern;
         const dithered = this.dither(u, v, brightness);
         
-        // Create a color palette
-        const color1 = { r: 0.05, g: 0.1, b: 0.2 };  // Dark blue
-        const color2 = { r: 0.2, g: 0.4, b: 0.6 };   // Medium blue
-        const color3 = { r: 0.6, g: 0.8, b: 0.9 };   // Light blue
+        // Create theme-aware color palette
+        const primaryColor = this.getThemedColor('primary');
+        const secondaryColor = this.getThemedColor('secondary');
+        const accentColor = this.getThemedColor('accent');
+        
+        const color1 = { 
+          r: primaryColor.r / 255 * 0.3, 
+          g: primaryColor.g / 255 * 0.3, 
+          b: primaryColor.b / 255 * 0.3 
+        };
+        const color2 = { 
+          r: secondaryColor.r / 255 * 0.7, 
+          g: secondaryColor.g / 255 * 0.7, 
+          b: secondaryColor.b / 255 * 0.7 
+        };
+        const color3 = { 
+          r: accentColor.r / 255, 
+          g: accentColor.g / 255, 
+          b: accentColor.b / 255 
+        };
         
         // Mix colors based on the noise and dithering
         let finalColor;
